@@ -14,8 +14,8 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex flex-col">
+      <div className="container mx-auto px-4 py-8 flex-1">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
@@ -23,11 +23,11 @@ const Index = () => {
               <ClipboardCheck className="h-8 w-8 text-white" />
             </div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
-              Sistem Presensi Digital
+              Attenda
             </h1>
           </div>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Platform presensi modern untuk pegawai internal dan tamu eksternal dengan interface yang mudah digunakan
+            One Tap to Be Counted - Platform presensi modern untuk pegawai internal dan tamu eksternal
           </p>
         </div>
 
@@ -96,6 +96,15 @@ const Index = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Footer */}
+      <footer className="bg-white/80 backdrop-blur-sm border-t border-white/20 py-4 mt-8">
+        <div className="container mx-auto px-4 text-center">
+          <p className="text-sm text-muted-foreground">
+            dibuat-buat oleh Yudhi 2025
+          </p>
+        </div>
+      </footer>
     </div>
   );
 };
