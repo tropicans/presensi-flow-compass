@@ -1,23 +1,21 @@
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom'; // 1. Impor useLocation
 import { AttendanceForm } from '../components/AttendanceForm';
 import { AttendanceRecord } from '../types/attendance';
 import { ClipboardCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
-  // State ini mungkin tidak lagi diperlukan di sini, tapi kita biarkan untuk saat ini
-  // jika ada logika yang bergantung padanya di masa depan.
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const { toast } = useToast();
 
-  // Fungsi ini akan dipanggil setelah form berhasil mengirim data
+  // 2. Gunakan useLocation untuk mendapatkan parameter dari URL
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const activityIdFromUrl = queryParams.get('activityId');
+
   const handleFormSubmit = (newRecord: AttendanceRecord) => {
-    // Di versi ini, kita hanya menampilkan notifikasi.
-    // Data akan otomatis muncul di halaman admin saat di-refresh.
     setAttendanceRecords(prev => [newRecord, ...prev]);
-    
-    // Toast dipindahkan ke dalam form, jadi baris ini bisa dihapus jika duplikat.
-    // Namun, kita biarkan untuk memastikan ada feedback.
     toast({
       title: "Sukses!",
       description: "Data presensi Anda telah berhasil direkam.",
@@ -44,7 +42,8 @@ const Index = () => {
 
         {/* Form Presensi Langsung */}
         <div className="mt-6">
-          <AttendanceForm onSubmit={handleFormSubmit} />
+          {/* 3. Teruskan activityId sebagai prop ke form */}
+          <AttendanceForm onSubmit={handleFormSubmit} activityIdFromUrl={activityIdFromUrl} />
         </div>
       </div>
 

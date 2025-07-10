@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AttendanceDashboard } from '../components/AttendanceDashboard';
+import { ActivityManager } from '../components/ActivityManager'; // 1. Impor komponen baru
 import { AttendanceRecord } from '../types/attendance';
 import { ShieldCheck } from 'lucide-react';
 
@@ -46,13 +47,21 @@ const AdminPage = () => {
           </p>
         </div>
 
-        {isLoading ? (
-          <p className="text-center">Memuat data...</p>
-        ) : error ? (
-          <p className="text-center text-red-500">Error: {error}</p>
-        ) : (
-          <AttendanceDashboard records={attendanceRecords} />
-        )}
+        {/* 2. Bungkus konten utama untuk memberi jarak */}
+        <div className="space-y-8">
+            {/* 3. Tampilkan komponen manajemen kegiatan */}
+            <ActivityManager />
+
+            {/* Dasbor presensi yang sudah ada */}
+            {isLoading ? (
+              <p className="text-center">Memuat data presensi...</p>
+            ) : error ? (
+              <p className="text-center text-red-500">Error: {error}</p>
+            ) : (
+              <AttendanceDashboard records={attendanceRecords} />
+            )}
+        </div>
+
       </div>
 
       {/* Footer */}

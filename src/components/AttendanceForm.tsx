@@ -7,16 +7,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { CheckCircle, User, Users, Building, Phone, Target, Calendar, Signature, AlertCircle } from 'lucide-react';
-import { AttendanceRecord } from '../types/attendance';
-import { mockActivities } from '../data/mockData';
+import { AttendanceRecord, Activity } from '../types/attendance';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '../hooks/use-debounce';
 
 interface AttendanceFormProps {
   onSubmit: (record: AttendanceRecord) => void;
+  activityIdFromUrl: string | null;
 }
 
-export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit }) => {
+export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit, activityIdFromUrl }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [userType, setUserType] = useState<'internal' | 'eksternal' | null>(null);
   const [formData, setFormData] = useState<Partial<AttendanceRecord>>({});
@@ -25,27 +25,61 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit }) => {
   
   const [nipInput, setNipInput] = useState('');
   const debouncedNip = useDebounce(nipInput, 500);
-
-  // --- STATE BARU UNTUK ERROR VALIDASI ---
   const [contactError, setContactError] = useState<string | null>(null);
+  const [activities, setActivities] = useState<Activity[]>([]);
+
+  useEffect(() => {
+    const fetchActiveActivities = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/activities/active');
+        if (!response.ok) {
+          throw new Error('Gagal memuat daftar kegiatan');
+        }
+        const data = await response.json();
+        setActivities(data);
+      } catch (error) {
+        console.error(error);
+        toast({
+          title: 'Error',
+          description: 'Tidak dapat memuat daftar kegiatan dari server.',
+          variant: 'destructive',
+        });
+      }
+    };
+    fetchActiveActivities();
+  }, [toast]);
+
+  useEffect(() => {
+    if (activityIdFromUrl && activities.length > 0) {
+      const activityFromUrl = activities.find(act => act.id.toString() === activityIdFromUrl);
+      if (activityFromUrl) {
+        setFormData(prevData => ({
+          ...prevData,
+          kegiatan: activityFromUrl.nama_kegiatan
+        }));
+        toast({
+            title: "Kegiatan Terpilih",
+            description: `Anda akan melakukan presensi untuk: ${activityFromUrl.nama_kegiatan}`
+        })
+      }
+    }
+  }, [activityIdFromUrl, activities, toast]);
+
 
   const totalSteps = userType === 'internal' ? 6 : 9;
   const progress = (currentStep / totalSteps) * 100;
 
-  // --- FUNGSI BARU UNTUK VALIDASI DI FRONTEND ---
   const validateContact = (contact: string | undefined) => {
-    // Jika nomor kontak kosong atau tidak ada, tidak ada error (opsional)
     if (!contact || contact.trim() === '') {
       setContactError(null);
       return true;
     }
-    // Regex: harus diawali '08', diikuti 8 sampai 11 digit angka.
     const phoneRegex = /^08[0-9]{8,11}$/;
     if (!phoneRegex.test(contact)) {
       setContactError('Format nomor tidak valid (contoh: 081234567890).');
       return false;
     }
-    setContactError(null); // Hapus error jika valid
+    setContactError(null);
     return true;
   };
 
@@ -63,18 +97,26 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit }) => {
 
   const handleUserTypeSelect = (type: 'internal' | 'eksternal') => {
     setUserType(type);
-    setFormData({ tipe_user: type });
+    setFormData(prevData => ({ tipe_user: type, kegiatan: prevData.kegiatan }));
     setIsEmployeeFound(false);
     setNipInput('');
-    setContactError(null); // Reset error saat ganti user type
+    setContactError(null);
     handleNext();
   };
   
   useEffect(() => {
     const searchNip = async () => {
+      const resetEmployeeData = (currentData: Partial<AttendanceRecord>) => ({
+          ...currentData,
+          nip: debouncedNip,
+          nama: '',
+          jabatan: '',
+          nomor_kontak: ''
+      });
+
       if (debouncedNip.length < 3) {
         setIsEmployeeFound(false);
-        setFormData(currentData => ({ ...currentData, nip: debouncedNip, nama: '', jabatan: '', nomor_kontak: '' }));
+        setFormData(resetEmployeeData);
         return;
       }
 
@@ -90,13 +132,12 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit }) => {
             jabatan: employee.jabatan,
             nomor_kontak: employee.nomor_kontak,
           }));
-          // Validasi nomor kontak yang didapat dari DB
           validateContact(employee.nomor_kontak);
           setIsEmployeeFound(true);
           toast({ title: "Data ditemukan", description: `Selamat datang, ${employee.nama}!` });
         } else {
           setIsEmployeeFound(false);
-          setFormData(currentData => ({ ...currentData, nip: debouncedNip, nama: '', jabatan: '', nomor_kontak: '' }));
+          setFormData(resetEmployeeData);
         }
       } catch (error) {
         setIsEmployeeFound(false);
@@ -111,7 +152,6 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit }) => {
   }, [debouncedNip, userType, toast]);
 
   const handleSubmit = async () => {
-    // Lakukan validasi sekali lagi sebelum submit
     if (!validateContact(formData.nomor_kontak)) {
         toast({ title: "Validasi Gagal", description: "Mohon perbaiki format nomor kontak sebelum submit.", variant: "destructive" });
         return;
@@ -148,7 +188,6 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit }) => {
     }
   };
   
-  // Fungsi untuk menangani perubahan input nomor kontak
   const handleContactChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setFormData({ ...formData, nomor_kontak: value });
@@ -156,6 +195,34 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit }) => {
   }
 
   const renderStep = () => {
+    const activitySelect = (
+        <div className="space-y-4">
+            <div className="text-center mb-6"><h2 className="text-xl font-bold">Pilih Kegiatan</h2><p className="text-muted-foreground">Kegiatan apa yang akan Anda ikuti?</p></div>
+            <div className="space-y-2">
+                <Label htmlFor="kegiatan"><Calendar className="inline h-4 w-4 mr-2" />Kegiatan</Label>
+                {activityIdFromUrl && formData.kegiatan ? (
+                    <Input value={formData.kegiatan} disabled />
+                ) : (
+                    <Select onValueChange={(value) => setFormData({ ...formData, kegiatan: value })} value={formData.kegiatan}>
+                        <SelectTrigger><SelectValue placeholder="Pilih kegiatan" /></SelectTrigger>
+                        <SelectContent>
+                            {activities.map((activity) => (
+                                <SelectItem key={activity.id} value={activity.nama_kegiatan}>{activity.nama_kegiatan}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                )}
+            </div>
+        </div>
+    );
+    
+    const signatureStep = (
+        <div className="space-y-4">
+            <div className="text-center mb-6"><h2 className="text-xl font-bold">Tanda Tangan</h2><p className="text-muted-foreground">Tanda tangan digital (opsional)</p></div>
+            <div className="space-y-2"><Label htmlFor="signature"><Signature className="inline h-4 w-4 mr-2" />Tanda Tangan</Label><div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center"><Signature className="h-12 w-12 mx-auto mb-2 text-muted-foreground" /><p className="text-sm text-muted-foreground">Area tanda tangan digital</p><p className="text-xs text-muted-foreground mt-1">(Fitur akan dikembangkan)</p></div></div>
+        </div>
+    );
+
     switch (currentStep) {
       case 1:
         return (
@@ -208,14 +275,7 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit }) => {
           </div>
         );
       case 4:
-        if (userType === 'internal') {
-          return (
-            <div className="space-y-4">
-              <div className="text-center mb-6"><h2 className="text-xl font-bold">Pilih Kegiatan</h2><p className="text-muted-foreground">Kegiatan apa yang akan Anda ikuti?</p></div>
-              <div className="space-y-2"><Label htmlFor="kegiatan"><Calendar className="inline h-4 w-4 mr-2" />Kegiatan</Label><Select onValueChange={(value) => setFormData({ ...formData, kegiatan: value })}><SelectTrigger><SelectValue placeholder="Pilih kegiatan" /></SelectTrigger><SelectContent>{mockActivities.map((activity) => (<SelectItem key={activity.id} value={activity.nama_kegiatan}>{activity.nama_kegiatan}</SelectItem>))}</SelectContent></Select></div>
-            </div>
-          );
-        }
+        if (userType === 'internal') return activitySelect;
         return (
           <div className="space-y-4">
             <div className="text-center mb-6"><h2 className="text-xl font-bold">Kontak</h2><p className="text-muted-foreground">Nomor yang bisa dihubungi</p></div>
@@ -227,14 +287,7 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit }) => {
           </div>
         );
       case 5:
-        if (userType === 'internal') {
-          return (
-            <div className="space-y-4">
-              <div className="text-center mb-6"><h2 className="text-xl font-bold">Tanda Tangan</h2><p className="text-muted-foreground">Tanda tangan digital (opsional)</p></div>
-              <div className="space-y-2"><Label htmlFor="signature"><Signature className="inline h-4 w-4 mr-2" />Tanda Tangan</Label><div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center"><Signature className="h-12 w-12 mx-auto mb-2 text-muted-foreground" /><p className="text-sm text-muted-foreground">Area tanda tangan digital</p><p className="text-xs text-muted-foreground mt-1">(Fitur akan dikembangkan)</p></div></div>
-            </div>
-          );
-        }
+        if (userType === 'internal') return signatureStep;
         return (
           <div className="space-y-4">
             <div className="text-center mb-6"><h2 className="text-xl font-bold">Orang yang Dituju</h2><p className="text-muted-foreground">Siapa yang ingin Anda temui?</p></div>
@@ -256,18 +309,24 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit }) => {
             <div className="space-y-2"><Label htmlFor="tujuan">Tujuan Kedatangan</Label><Textarea id="tujuan" placeholder="Jelaskan secara singkat tujuan kedatangan Anda" value={formData.tujuan || ''} onChange={(e) => setFormData({ ...formData, tujuan: e.target.value })} rows={4} /></div>
           </div>
         );
-      // ... sisa case tidak berubah
+      case 7:
+        return activitySelect;
+      // --- PERBAIKAN DI SINI ---
+      case 8:
+        return signatureStep; // Tampilkan langkah tanda tangan
+      case 9:
+        return ( // Tampilkan langkah konfirmasi untuk eksternal
+            <div className="space-y-4">
+                <div className="text-center mb-6"><CheckCircle className="h-16 w-16 mx-auto text-green-600 mb-4" /><h2 className="text-xl font-bold">Konfirmasi Presensi</h2><p className="text-muted-foreground">Periksa data presensi Anda</p></div>
+                <div className="p-4 border rounded-lg bg-muted/50"><div className="grid grid-cols-1 gap-2 text-sm"><div><strong>Nama:</strong> {formData.nama}</div><div><strong>Instansi:</strong> {formData.instansi}</div><div><strong>Kontak:</strong> {formData.nomor_kontak}</div><div><strong>Dituju:</strong> {formData.orang_dituju}</div><div><strong>Tujuan:</strong> {formData.tujuan}</div><div><strong>Kegiatan:</strong> {formData.kegiatan}</div></div></div>
+            </div>
+        );
       default:
         return null;
     }
   };
 
   const isStepValid = () => {
-    // Jika ada error format kontak, tombol lanjut selalu nonaktif
-    if (contactError) {
-      return false;
-    }
-
     switch (currentStep) {
       case 1: return userType !== null;
       case 2:
@@ -275,14 +334,13 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit }) => {
         return !!formData.nama && formData.nama.length > 0;
       case 3:
         if (userType === 'internal') {
-            // Nomor kontak boleh kosong, tapi jika diisi harus valid.
-            // Karena pengecekan `contactError` sudah di atas, kita hanya perlu cek kondisi lain.
+            if(contactError) return false;
             return true;
         }
         return !!formData.instansi && formData.instansi.length > 0;
       case 4:
         if (userType === 'internal') return !!formData.kegiatan && formData.kegiatan.length > 0;
-        // Untuk eksternal, nomor kontak wajib diisi.
+        if(contactError) return false;
         return !!formData.nomor_kontak && formData.nomor_kontak.length > 0;
       case 5:
         if (userType === 'internal') return true;
