@@ -1,4 +1,3 @@
-
 export interface Activity {
   id: string;
   nama_kegiatan: string;
@@ -10,7 +9,7 @@ export interface AttendanceRecord {
   nip?: string;
   nama: string;
   jabatan?: string;
-  instansi: string;
+  instansi?: string; // Diubah menjadi opsional
   nomor_kontak?: string;
   orang_dituju?: string;
   tujuan?: string;
@@ -23,5 +22,6 @@ export interface Employee {
   nip: string;
   nama: string;
   jabatan: string;
-  instansi: string;
+  instansi?: string; // Diubah menjadi opsional
+  nomor_kontak?: string;
 }
