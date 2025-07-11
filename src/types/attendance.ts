@@ -8,8 +8,8 @@ export interface AttendanceRecord {
   tipe_user: 'internal' | 'eksternal';
   nip?: string;
   nama: string;
-  jabatan?: string;
-  instansi?: string; // Diubah menjadi opsional
+  unit_kerja?: string; // Diubah dari jabatan
+  instansi?: string;
   nomor_kontak?: string;
   orang_dituju?: string;
   tujuan?: string;
@@ -21,7 +21,7 @@ export interface AttendanceRecord {
 export interface Employee {
   nip: string;
   nama: string;
-  jabatan: string;
-  instansi?: string; // Diubah menjadi opsional
+  unit_kerja: string; // Diubah dari jabatan
+  instansi?: string;
   nomor_kontak?: string;
 }

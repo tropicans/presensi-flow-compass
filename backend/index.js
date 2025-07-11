@@ -8,7 +8,9 @@ const port = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ limit: '5mb', extended: true }));
+
 
 // --- FUNGSI VALIDASI ---
 const validatePhoneNumber = (phone) => {
@@ -26,7 +28,7 @@ app.get('/api/activities', async (req, res) => {
     res.json(rows);
   } catch (err) {
     console.error('Error fetching activities', err.stack);
-    res.status(500).send('Server Error');
+    res.status(500).json({ message: 'Server Error', error: err.message });
   }
 });
 
@@ -37,7 +39,7 @@ app.get('/api/activities/active', async (req, res) => {
       res.json(rows);
     } catch (err) {
       console.error('Error fetching active activities', err.stack);
-      res.status(500).send('Server Error');
+      res.status(500).json({ message: 'Server Error', error: err.message });
     }
 });
 
@@ -55,7 +57,7 @@ app.post('/api/activities', async (req, res) => {
         res.status(201).json(newActivity.rows[0]);
     } catch (err) {
         console.error('Error creating activity', err.stack);
-        res.status(500).send('Server Error');
+        res.status(500).json({ message: 'Server Error', error: err.message });
     }
 });
 
@@ -77,7 +79,7 @@ app.put('/api/activities/:id', async (req, res) => {
         res.json(updatedActivity.rows[0]);
     } catch (err) {
         console.error('Error updating activity', err.stack);
-        res.status(500).send('Server Error');
+        res.status(500).json({ message: 'Server Error', error: err.message });
     }
 });
 
@@ -92,7 +94,7 @@ app.delete('/api/activities/:id', async (req, res) => {
         res.status(200).json({ message: 'Kegiatan berhasil dihapus.' });
     } catch (err) {
         console.error('Error deleting activity', err.stack);
-        res.status(500).send('Server Error');
+        res.status(500).json({ message: 'Server Error', error: err.message });
     }
 });
 
@@ -104,13 +106,17 @@ app.get('/api/records', async (req, res) => {
     res.json(rows);
   } catch (err) {
     console.error('Error executing query', err.stack);
-    res.status(500).send('Server Error');
+    res.status(500).json({ message: 'Server Error', error: err.message });
   }
 });
 
 app.post('/api/records', async (req, res) => {
+  // --- TAMBAHKAN LOG INI UNTUK DEBUGGING ---
+  console.log('Menerima payload presensi:', req.body);
+  // -----------------------------------------
+
   const {
-    tipe_user, nip, nama, jabatan, instansi, nomor_kontak, orang_dituju, tujuan, kegiatan, tanda_tangan,
+    tipe_user, nip, nama, unit_kerja, instansi, nomor_kontak, orang_dituju, tujuan, kegiatan, tanda_tangan,
   } = req.body;
 
   if (!validatePhoneNumber(nomor_kontak)) {
@@ -118,13 +124,25 @@ app.post('/api/records', async (req, res) => {
   }
 
   try {
+    const finalUnitKerja = tipe_user === 'internal' ? unit_kerja : null;
+    const finalInstansi = tipe_user === 'eksternal' ? instansi : null;
+
     const newRecord = await db.query(
       `INSERT INTO attendance_records (
-        tipe_user, nip, nama, jabatan, instansi, nomor_kontak, orang_dituju, tujuan, kegiatan, tanda_tangan, waktu_presensi
+        tipe_user, nip, nama, unit_kerja, instansi, nomor_kontak, orang_dituju, tujuan, kegiatan, tanda_tangan, waktu_presensi
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
       RETURNING *`,
       [
-        tipe_user, nip, nama, jabatan, tipe_user === 'internal' ? jabatan : instansi, nomor_kontak, orang_dituju, tujuan, kegiatan, tanda_tangan,
+        tipe_user,
+        nip || null,
+        nama,
+        finalUnitKerja,
+        finalInstansi,
+        nomor_kontak || null,
+        orang_dituju || null,
+        tujuan || null,
+        kegiatan,
+        tanda_tangan || null,
       ]
     );
 
@@ -135,7 +153,7 @@ app.post('/api/records', async (req, res) => {
     res.status(201).json(newRecord.rows[0]);
   } catch (err) {
     console.error('Error executing insert/update query', err.stack);
-    res.status(500).send('Server Error');
+    res.status(500).json({ message: 'Server Error', error: err.message });
   }
 });
 
@@ -147,16 +165,19 @@ app.get('/api/employees/:nip', async (req, res) => {
         const employeeData = {
             nip: rows[0].nip,
             nama: rows[0].full_name,
-            jabatan: rows[0].unit_kerja,
+            unit_kerja: rows[0].unit_kerja,
             nomor_kontak: rows[0].nomor_kontak,
         };
+        
+        console.log('Data yang dikirim ke frontend:', employeeData);
+
         res.json(employeeData);
       } else {
         res.status(404).json({ message: 'Pegawai tidak ditemukan' });
       }
     } catch (err) {
       console.error('Error executing employee query', err.stack);
-      res.status(500).send('Server Error');
+      res.status(500).json({ message: 'Server Error', error: err.message });
     }
 });
 

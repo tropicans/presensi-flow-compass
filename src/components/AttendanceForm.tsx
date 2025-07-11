@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import SignaturePad from 'react-signature-pad-wrapper';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +11,7 @@ import { CheckCircle, User, Users, Building, Phone, Target, Calendar, Signature,
 import { AttendanceRecord, Activity } from '../types/attendance';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '../hooks/use-debounce';
-import { API_BASE_URL } from '../config'; // <-- Tambahkan impor ini
+import { API_BASE_URL } from '../config';
 
 interface AttendanceFormProps {
   onSubmit: (record: AttendanceRecord) => void;
@@ -29,10 +30,11 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit, activi
   const [contactError, setContactError] = useState<string | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
 
+  const sigPadRef = useRef<SignaturePad | null>(null);
+
   useEffect(() => {
     const fetchActiveActivities = async () => {
       try {
-        // Ganti URL dengan konstanta
         const response = await fetch(`${API_BASE_URL}/api/activities/active`);
         if (!response.ok) {
           throw new Error('Gagal memuat daftar kegiatan');
@@ -86,6 +88,19 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit, activi
   };
 
   const handleNext = () => {
+    const isSignatureStep = (userType === 'internal' && currentStep === 5) || (userType === 'eksternal' && currentStep === 8);
+
+    if (isSignatureStep) {
+      const signatureImage = sigPadRef.current?.isEmpty()
+          ? undefined
+          : sigPadRef.current?.toDataURL('image/png');
+      
+      setFormData(prevData => ({
+          ...prevData,
+          tanda_tangan: signatureImage
+      }));
+    }
+
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
     }
@@ -112,7 +127,7 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit, activi
           ...currentData,
           nip: debouncedNip,
           nama: '',
-          jabatan: '',
+          unit_kerja: '',
           nomor_kontak: ''
       });
 
@@ -123,7 +138,6 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit, activi
       }
 
       try {
-        // Ganti URL dengan konstanta
         const response = await fetch(`${API_BASE_URL}/api/employees/${debouncedNip}`);
         
         if (response.ok) {
@@ -132,7 +146,7 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit, activi
             ...currentData,
             nip: employee.nip,
             nama: employee.nama,
-            jabatan: employee.jabatan,
+            unit_kerja: employee.unit_kerja,
             nomor_kontak: employee.nomor_kontak,
           }));
           validateContact(employee.nomor_kontak);
@@ -160,10 +174,19 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit, activi
         return;
     }
 
-    const newRecordPayload = { ...formData, tipe_user: formData.tipe_user!, nama: formData.nama!, instansi: formData.instansi!, kegiatan: formData.kegiatan! };
+    const newRecordPayload = { 
+        ...formData, 
+        tipe_user: formData.tipe_user!, 
+        nama: formData.nama!, 
+        unit_kerja: formData.unit_kerja,
+        instansi: formData.instansi,
+        kegiatan: formData.kegiatan!,
+        // tanda_tangan sudah ada di formData dari handleNext
+    };
+
+    console.log('Payload yang akan dikirim:', newRecordPayload);
 
     try {
-      // Ganti URL dengan konstanta
       const response = await fetch(`${API_BASE_URL}/api/records`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -178,6 +201,8 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit, activi
       const savedRecord = await response.json();
       onSubmit(savedRecord);
       toast({ title: "Presensi berhasil dicatat", description: "Terima kasih atas kehadiran Anda!" });
+
+      sigPadRef.current?.clear(); 
 
       setCurrentStep(1);
       setUserType(null);
@@ -223,7 +248,29 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit, activi
     const signatureStep = (
         <div className="space-y-4">
             <div className="text-center mb-6"><h2 className="text-xl font-bold">Tanda Tangan</h2><p className="text-muted-foreground">Tanda tangan digital (opsional)</p></div>
-            <div className="space-y-2"><Label htmlFor="signature"><Signature className="inline h-4 w-4 mr-2" />Tanda Tangan</Label><div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center"><Signature className="h-12 w-12 mx-auto mb-2 text-muted-foreground" /><p className="text-sm text-muted-foreground">Area tanda tangan digital</p><p className="text-xs text-muted-foreground mt-1">(Fitur akan dikembangkan)</p></div></div>
+            <div className="space-y-2">
+                <Label htmlFor="signature"><Signature className="inline h-4 w-4 mr-2" />Tanda Tangan</Label>
+                <div className="border rounded-lg overflow-hidden">
+                    <SignaturePad
+                        ref={sigPadRef}
+                        options={{
+                            minWidth: 1,
+                            maxWidth: 2,
+                            penColor: 'black',
+                        }}
+                    />
+                </div>
+                <div className="flex justify-end">
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => sigPadRef.current?.clear()}
+                    >
+                        Bersihkan
+                    </Button>
+                </div>
+            </div>
         </div>
     );
 
@@ -261,7 +308,7 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit, activi
               <div className="p-4 border rounded-lg bg-muted/50">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2"><Label htmlFor="nama">Nama</Label><Input id="nama" value={formData.nama || ''} disabled={isEmployeeFound} onChange={(e) => setFormData({...formData, nama: e.target.value})} /></div>
-                  <div className="space-y-2"><Label htmlFor="jabatan">Unit Kerja</Label><Input id="jabatan" value={formData.jabatan || ''} disabled={isEmployeeFound} onChange={(e) => setFormData({...formData, jabatan: e.target.value})} /></div>
+                  <div className="space-y-2"><Label htmlFor="unit_kerja">Unit Kerja</Label><Input id="unit_kerja" value={formData.unit_kerja || ''} disabled={isEmployeeFound} onChange={(e) => setFormData({...formData, unit_kerja: e.target.value})} /></div>
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="nomor_kontak">Nomor Kontak</Label>
                     <Input id="nomor_kontak" placeholder="Masukkan nomor kontak" value={formData.nomor_kontak || ''} onChange={handleContactChange} />
@@ -303,7 +350,7 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit, activi
           return (
             <div className="space-y-4">
               <div className="text-center mb-6"><CheckCircle className="h-16 w-16 mx-auto text-green-600 mb-4" /><h2 className="text-xl font-bold">Konfirmasi Presensi</h2><p className="text-muted-foreground">Periksa data presensi Anda</p></div>
-              <div className="p-4 border rounded-lg bg-muted/50"><div className="grid grid-cols-1 gap-2"><div><strong>Nama:</strong> {formData.nama}</div><div><strong>NIP:</strong> {formData.nip}</div><div><strong>Unit Kerja:</strong> {formData.jabatan}</div><div><strong>Nomor Kontak:</strong> {formData.nomor_kontak || '-'}</div><div><strong>Kegiatan:</strong> {formData.kegiatan}</div></div></div>
+              <div className="p-4 border rounded-lg bg-muted/50"><div className="grid grid-cols-1 gap-2"><div><strong>Nama:</strong> {formData.nama}</div><div><strong>NIP:</strong> {formData.nip}</div><div><strong>Unit Kerja:</strong> {formData.unit_kerja}</div><div><strong>Nomor Kontak:</strong> {formData.nomor_kontak || '-'}</div><div><strong>Kegiatan:</strong> {formData.kegiatan}</div></div></div>
             </div>
           );
         }
@@ -330,32 +377,38 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit, activi
   };
 
   const isStepValid = () => {
-    switch (currentStep) {
-      case 1: return userType !== null;
-      case 2:
-        if (userType === 'internal') return !!isEmployeeFound;
-        return !!formData.nama && formData.nama.length > 0;
-      case 3:
-        if (userType === 'internal') {
-            if(contactError) return false;
-            return true;
-        }
-        return !!formData.instansi && formData.instansi.length > 0;
-      case 4:
-        if (userType === 'internal') return !!formData.kegiatan && formData.kegiatan.length > 0;
-        if(contactError) return false;
-        return !!formData.nomor_kontak && formData.nomor_kontak.length > 0;
-      case 5:
-        if (userType === 'internal') return true;
-        return !!formData.orang_dituju && formData.orang_dituju.length > 0;
-      case 6:
-        if (userType === 'internal') return true;
-        return !!formData.tujuan && formData.tujuan.length > 0;
-      case 7: return !!formData.kegiatan && formData.kegiatan.length > 0;
-      case 8: return true;
-      case 9: return true;
-      default: return false;
+    if (!userType) {
+        return currentStep === 1;
     }
+
+    if (userType === 'internal') {
+        switch (currentStep) {
+            case 1: return false;
+            case 2: return isEmployeeFound;
+            case 3: return !contactError;
+            case 4: return !!formData.kegiatan && formData.kegiatan.length > 0;
+            case 5: return true;
+            case 6: return true;
+            default: return false;
+        }
+    }
+
+    if (userType === 'eksternal') {
+        switch (currentStep) {
+            case 1: return false;
+            case 2: return !!formData.nama && formData.nama.trim() !== '';
+            case 3: return !!formData.instansi && formData.instansi.trim() !== '';
+            case 4: return !contactError && !!formData.nomor_kontak && formData.nomor_kontak.trim() !== '';
+            case 5: return !!formData.orang_dituju && formData.orang_dituju.trim() !== '';
+            case 6: return !!formData.tujuan && formData.tujuan.trim() !== '';
+            case 7: return !!formData.kegiatan && formData.kegiatan.length > 0;
+            case 8: return true;
+            case 9: return true;
+            default: return false;
+        }
+    }
+    
+    return false;
   };
 
   const isLastStep = currentStep === totalSteps;

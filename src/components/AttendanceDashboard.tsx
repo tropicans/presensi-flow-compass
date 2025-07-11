@@ -33,7 +33,8 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ record
       const matchesSearch =
         record.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (record.nip && record.nip.includes(searchTerm)) ||
-        (record.instansi && record.instansi.toLowerCase().includes(searchTerm.toLowerCase()));
+        (record.instansi && record.instansi.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (record.unit_kerja && record.unit_kerja.toLowerCase().includes(searchTerm.toLowerCase()));
       
       const matchesActivity = selectedActivity === 'all' || record.kegiatan === selectedActivity;
       const matchesUserType = selectedUserType === 'all' || record.tipe_user === selectedUserType;
@@ -51,7 +52,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ record
       ...filteredRecords.map(record => [
         `"${record.nama}"`,
         `"${record.nip || ''}"`,
-        `"${record.instansi || ''}"`,
+        `"${record.tipe_user === 'internal' ? record.unit_kerja : record.instansi || ''}"`,
         `"${record.kegiatan}"`,
         `"${record.tipe_user}"`,
         `"${format(new Date(record.waktu_presensi), 'dd/MM/yyyy HH:mm')}"`
@@ -124,7 +125,6 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ record
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div className="space-y-2">
               <Label htmlFor="search"><Search className="inline h-4 w-4 mr-1" />Cari</Label>
-              {/* PERUBAHAN 1: Placeholder diubah */}
               <Input id="search" placeholder="Nama, NIP, atau Unit Kerja/Instansi" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
             </div>
             <div className="space-y-2"><Label htmlFor="activity">Kegiatan</Label><Select value={selectedActivity} onValueChange={setSelectedActivity}><SelectTrigger><SelectValue placeholder="Semua kegiatan" /></SelectTrigger><SelectContent><SelectItem value="all">Semua Kegiatan</SelectItem>{uniqueActivities.map((activity) => (<SelectItem key={activity} value={activity}>{activity}</SelectItem>))}</SelectContent></Select></div>
@@ -136,12 +136,11 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ record
           <div className="border rounded-lg overflow-x-auto"><Table><TableHeader><TableRow>
             <TableHead>Nama</TableHead>
             <TableHead>NIP</TableHead>
-            {/* PERUBAHAN 2: Header tabel diubah */}
             <TableHead>Unit Kerja/Instansi</TableHead>
             <TableHead>Kegiatan</TableHead>
             <TableHead>Tipe</TableHead>
             <TableHead>Waktu</TableHead>
-          </TableRow></TableHeader><TableBody>{filteredRecords.length === 0 ? (<TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Tidak ada data presensi ditemukan</TableCell></TableRow>) : (filteredRecords.map((record) => (<TableRow key={record.id}><TableCell className="font-medium">{record.nama}</TableCell><TableCell>{record.nip || '-'}</TableCell><TableCell>{record.instansi}</TableCell><TableCell>{record.kegiatan}</TableCell><TableCell><Badge variant={record.tipe_user === 'internal' ? 'default' : 'secondary'}>{record.tipe_user === 'internal' ? 'Internal' : 'Eksternal'}</Badge></TableCell><TableCell>{format(new Date(record.waktu_presensi), 'dd/MM/yyyy HH:mm')}</TableCell></TableRow>)))}</TableBody></Table></div>
+          </TableRow></TableHeader><TableBody>{filteredRecords.length === 0 ? (<TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Tidak ada data presensi ditemukan</TableCell></TableRow>) : (filteredRecords.map((record) => (<TableRow key={record.id}><TableCell className="font-medium">{record.nama}</TableCell><TableCell>{record.nip || '-'}</TableCell><TableCell>{record.tipe_user === 'internal' ? record.unit_kerja : record.instansi}</TableCell><TableCell>{record.kegiatan}</TableCell><TableCell><Badge variant={record.tipe_user === 'internal' ? 'default' : 'secondary'}>{record.tipe_user === 'internal' ? 'Internal' : 'Eksternal'}</Badge></TableCell><TableCell>{format(new Date(record.waktu_presensi), 'dd/MM/yyyy HH:mm')}</TableCell></TableRow>)))}</TableBody></Table></div>
           <div className="mt-4 text-sm text-muted-foreground">Menampilkan {filteredRecords.length} dari {records.length} total presensi</div>
         </CardContent>
       </Card>
