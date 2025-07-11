@@ -6,22 +6,18 @@ const db = require('./db');
 const app = express();
 const port = process.env.PORT || 3001;
 
-// Middleware
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ limit: '5mb', extended: true }));
 
-
-// --- FUNGSI VALIDASI ---
 const validatePhoneNumber = (phone) => {
   if (!phone) return true;
   const phoneRegex = /^08[0-9]{8,11}$/;
   return phoneRegex.test(phone);
 };
 
-// --- API ENDPOINTS UNTUK KEGIATAN (ACTIVITIES) ---
+// ... (Endpoint kegiatan tidak berubah)
 
-// GET: Mendapatkan semua kegiatan
 app.get('/api/activities', async (req, res) => {
   try {
     const { rows } = await db.query('SELECT * FROM activities ORDER BY created_at DESC');
@@ -32,7 +28,6 @@ app.get('/api/activities', async (req, res) => {
   }
 });
 
-// GET: Mendapatkan hanya kegiatan yang berstatus 'Aktif'
 app.get('/api/activities/active', async (req, res) => {
     try {
       const { rows } = await db.query("SELECT * FROM activities WHERE status = 'Aktif' ORDER BY nama_kegiatan ASC");
@@ -43,7 +38,6 @@ app.get('/api/activities/active', async (req, res) => {
     }
 });
 
-// POST: Membuat kegiatan baru
 app.post('/api/activities', async (req, res) => {
     const { nama_kegiatan, tipe_kegiatan } = req.body;
     if (!nama_kegiatan || !tipe_kegiatan) {
@@ -61,7 +55,6 @@ app.post('/api/activities', async (req, res) => {
     }
 });
 
-// PUT: Mengubah kegiatan
 app.put('/api/activities/:id', async (req, res) => {
     const { id } = req.params;
     const { nama_kegiatan, tipe_kegiatan, status } = req.body;
@@ -83,7 +76,6 @@ app.put('/api/activities/:id', async (req, res) => {
     }
 });
 
-// DELETE: Menghapus kegiatan
 app.delete('/api/activities/:id', async (req, res) => {
     const { id } = req.params;
     try {
@@ -98,8 +90,6 @@ app.delete('/api/activities/:id', async (req, res) => {
     }
 });
 
-// --- API ENDPOINTS UNTUK PRESENSI & PEGAWAI ---
-
 app.get('/api/records', async (req, res) => {
   try {
     const { rows } = await db.query('SELECT * FROM attendance_records ORDER BY waktu_presensi DESC');
@@ -111,12 +101,8 @@ app.get('/api/records', async (req, res) => {
 });
 
 app.post('/api/records', async (req, res) => {
-  // --- TAMBAHKAN LOG INI UNTUK DEBUGGING ---
-  console.log('Menerima payload presensi:', req.body);
-  // -----------------------------------------
-
   const {
-    tipe_user, nip, nama, unit_kerja, instansi, nomor_kontak, orang_dituju, tujuan, kegiatan, tanda_tangan,
+    tipe_user, nip, nama, unit_kerja, instansi, nomor_kontak, email, orang_dituju, tujuan, kegiatan, tanda_tangan,
   } = req.body;
 
   if (!validatePhoneNumber(nomor_kontak)) {
@@ -129,8 +115,8 @@ app.post('/api/records', async (req, res) => {
 
     const newRecord = await db.query(
       `INSERT INTO attendance_records (
-        tipe_user, nip, nama, unit_kerja, instansi, nomor_kontak, orang_dituju, tujuan, kegiatan, tanda_tangan, waktu_presensi
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+        tipe_user, nip, nama, unit_kerja, instansi, nomor_kontak, email, orang_dituju, tujuan, kegiatan, tanda_tangan, waktu_presensi
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
       RETURNING *`,
       [
         tipe_user,
@@ -139,6 +125,7 @@ app.post('/api/records', async (req, res) => {
         finalUnitKerja,
         finalInstansi,
         nomor_kontak || null,
+        email || null, // Ditambahkan
         orang_dituju || null,
         tujuan || null,
         kegiatan,
@@ -168,9 +155,6 @@ app.get('/api/employees/:nip', async (req, res) => {
             unit_kerja: rows[0].unit_kerja,
             nomor_kontak: rows[0].nomor_kontak,
         };
-        
-        console.log('Data yang dikirim ke frontend:', employeeData);
-
         res.json(employeeData);
       } else {
         res.status(404).json({ message: 'Pegawai tidak ditemukan' });
@@ -181,8 +165,6 @@ app.get('/api/employees/:nip', async (req, res) => {
     }
 });
 
-
-// Jalankan server Express
 app.listen(port, '127.0.0.1', () => {
   console.log(`🚀 Server berjalan di http://localhost:${port}`);
   console.log('✅ Backend siap menerima koneksi.');

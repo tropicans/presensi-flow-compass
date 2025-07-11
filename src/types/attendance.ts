@@ -1,6 +1,7 @@
 export interface Activity {
   id: string;
   nama_kegiatan: string;
+  tipe_kegiatan: 'Luring' | 'Daring';
 }
 
 export interface AttendanceRecord {
@@ -8,9 +9,10 @@ export interface AttendanceRecord {
   tipe_user: 'internal' | 'eksternal';
   nip?: string;
   nama: string;
-  unit_kerja?: string; // Diubah dari jabatan
+  unit_kerja?: string;
   instansi?: string;
   nomor_kontak?: string;
+  email?: string; // Ditambahkan
   orang_dituju?: string;
   tujuan?: string;
   kegiatan: string;
@@ -21,7 +23,7 @@ export interface AttendanceRecord {
 export interface Employee {
   nip: string;
   nama: string;
-  unit_kerja: string; // Diubah dari jabatan
+  unit_kerja: string;
   instansi?: string;
   nomor_kontak?: string;
 }
