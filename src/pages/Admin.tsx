@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { AttendanceDashboard } from '../components/AttendanceDashboard';
-import { ActivityManager } from '../components/ActivityManager'; // 1. Impor komponen baru
+import { ActivityManager } from '../components/ActivityManager';
 import { AttendanceRecord } from '../types/attendance';
 import { ShieldCheck } from 'lucide-react';
+import { API_BASE_URL } from '../config'; // <-- Tambahkan impor ini
 
 const AdminPage = () => {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
@@ -12,7 +13,8 @@ const AdminPage = () => {
   useEffect(() => {
     const fetchRecords = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/records');
+        // Ganti URL dengan konstanta
+        const response = await fetch(`${API_BASE_URL}/api/records`);
         if (!response.ok) {
           throw new Error('Gagal mengambil data dari server');
         }
@@ -32,7 +34,6 @@ const AdminPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <div className="container mx-auto px-4 py-8 flex-1">
-        {/* Header Admin */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <div className="p-3 bg-slate-800 rounded-full">
@@ -47,15 +48,13 @@ const AdminPage = () => {
           </p>
         </div>
 
-        {/* 2. Bungkus konten utama untuk memberi jarak */}
         <div className="space-y-8">
-            {/* 3. Tampilkan komponen manajemen kegiatan */}
             <ActivityManager />
 
-            {/* Dasbor presensi yang sudah ada */}
             {isLoading ? (
               <p className="text-center">Memuat data presensi...</p>
             ) : error ? (
+              // Tampilkan error dari state
               <p className="text-center text-red-500">Error: {error}</p>
             ) : (
               <AttendanceDashboard records={attendanceRecords} />
@@ -64,7 +63,6 @@ const AdminPage = () => {
 
       </div>
 
-      {/* Footer */}
       <footer className="bg-gray-100 border-t py-4 mt-8">
         <div className="container mx-auto px-4 text-center">
           <p className="text-sm text-muted-foreground">

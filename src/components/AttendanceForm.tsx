@@ -10,6 +10,7 @@ import { CheckCircle, User, Users, Building, Phone, Target, Calendar, Signature,
 import { AttendanceRecord, Activity } from '../types/attendance';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '../hooks/use-debounce';
+import { API_BASE_URL } from '../config'; // <-- Tambahkan impor ini
 
 interface AttendanceFormProps {
   onSubmit: (record: AttendanceRecord) => void;
@@ -31,7 +32,8 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit, activi
   useEffect(() => {
     const fetchActiveActivities = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/activities/active');
+        // Ganti URL dengan konstanta
+        const response = await fetch(`${API_BASE_URL}/api/activities/active`);
         if (!response.ok) {
           throw new Error('Gagal memuat daftar kegiatan');
         }
@@ -121,7 +123,8 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit, activi
       }
 
       try {
-        const response = await fetch(`http://localhost:3001/api/employees/${debouncedNip}`);
+        // Ganti URL dengan konstanta
+        const response = await fetch(`${API_BASE_URL}/api/employees/${debouncedNip}`);
         
         if (response.ok) {
           const employee = await response.json();
@@ -160,7 +163,8 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit, activi
     const newRecordPayload = { ...formData, tipe_user: formData.tipe_user!, nama: formData.nama!, instansi: formData.instansi!, kegiatan: formData.kegiatan! };
 
     try {
-      const response = await fetch('http://localhost:3001/api/records', {
+      // Ganti URL dengan konstanta
+      const response = await fetch(`${API_BASE_URL}/api/records`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newRecordPayload),
@@ -311,11 +315,10 @@ export const AttendanceForm: React.FC<AttendanceFormProps> = ({ onSubmit, activi
         );
       case 7:
         return activitySelect;
-      // --- PERBAIKAN DI SINI ---
       case 8:
-        return signatureStep; // Tampilkan langkah tanda tangan
+        return signatureStep;
       case 9:
-        return ( // Tampilkan langkah konfirmasi untuk eksternal
+        return (
             <div className="space-y-4">
                 <div className="text-center mb-6"><CheckCircle className="h-16 w-16 mx-auto text-green-600 mb-4" /><h2 className="text-xl font-bold">Konfirmasi Presensi</h2><p className="text-muted-foreground">Periksa data presensi Anda</p></div>
                 <div className="p-4 border rounded-lg bg-muted/50"><div className="grid grid-cols-1 gap-2 text-sm"><div><strong>Nama:</strong> {formData.nama}</div><div><strong>Instansi:</strong> {formData.instansi}</div><div><strong>Kontak:</strong> {formData.nomor_kontak}</div><div><strong>Dituju:</strong> {formData.orang_dituju}</div><div><strong>Tujuan:</strong> {formData.tujuan}</div><div><strong>Kegiatan:</strong> {formData.kegiatan}</div></div></div>

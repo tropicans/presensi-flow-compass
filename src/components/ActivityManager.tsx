@@ -7,10 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { PlusCircle, Edit, Trash2, ListChecks, QrCode } from 'lucide-react'; // 1. Impor Ikon QrCode
+import { PlusCircle, Edit, Trash2, ListChecks, QrCode } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import QRCode from 'qrcode.react'; // 2. Impor library QR Code
+import QRCode from 'qrcode.react';
+import { API_BASE_URL } from '../config'; // <-- Tambahkan impor ini
 
 interface Activity {
   id: number;
@@ -26,7 +27,6 @@ export const ActivityManager: React.FC = () => {
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [currentActivity, setCurrentActivity] = useState<Partial<Activity>>({});
   
-  // 3. State baru untuk dialog QR Code
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
   const [qrActivity, setQrActivity] = useState<Activity | null>(null);
 
@@ -35,7 +35,8 @@ export const ActivityManager: React.FC = () => {
   const fetchActivities = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:3001/api/activities');
+      // Ganti URL dengan konstanta
+      const response = await fetch(`${API_BASE_URL}/api/activities`);
       if (!response.ok) throw new Error('Gagal mengambil data kegiatan');
       const data = await response.json();
       setActivities(data);
@@ -57,9 +58,10 @@ export const ActivityManager: React.FC = () => {
     }
 
     const method = currentActivity.id ? 'PUT' : 'POST';
+    // Ganti URL dengan konstanta
     const url = currentActivity.id 
-        ? `http://localhost:3001/api/activities/${currentActivity.id}` 
-        : 'http://localhost:3001/api/activities';
+        ? `${API_BASE_URL}/api/activities/${currentActivity.id}` 
+        : `${API_BASE_URL}/api/activities`;
 
     try {
         const response = await fetch(url, {
@@ -86,7 +88,8 @@ export const ActivityManager: React.FC = () => {
     if (!window.confirm('Apakah Anda yakin ingin menghapus kegiatan ini?')) return;
 
     try {
-        const response = await fetch(`http://localhost:3001/api/activities/${id}`, { method: 'DELETE' });
+        // Ganti URL dengan konstanta
+        const response = await fetch(`${API_BASE_URL}/api/activities/${id}`, { method: 'DELETE' });
         if (!response.ok) throw new Error('Gagal menghapus kegiatan');
         toast({ title: 'Sukses!', description: 'Kegiatan berhasil dihapus.' });
         fetchActivities();
@@ -100,7 +103,6 @@ export const ActivityManager: React.FC = () => {
     setIsFormDialogOpen(true);
   };
 
-  // 4. Fungsi untuk membuka dialog QR Code
   const openQrDialog = (activity: Activity) => {
     setQrActivity(activity);
     setIsQrDialogOpen(true);
@@ -154,7 +156,6 @@ export const ActivityManager: React.FC = () => {
                       </TableCell>
                       <TableCell>{format(new Date(activity.created_at), 'dd MMMM yyyy')}</TableCell>
                       <TableCell className="text-right">
-                        {/* 5. Tombol QR Code ditambahkan */}
                         <Button variant="ghost" size="icon" onClick={() => openQrDialog(activity)}>
                           <QrCode className="h-4 w-4" />
                         </Button>
@@ -174,7 +175,6 @@ export const ActivityManager: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Dialog untuk Form Tambah/Edit Kegiatan */}
       <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -217,7 +217,6 @@ export const ActivityManager: React.FC = () => {
         </DialogContent>
       </Dialog>
       
-      {/* 6. Dialog baru untuk menampilkan QR Code */}
       <Dialog open={isQrDialogOpen} onOpenChange={setIsQrDialogOpen}>
         <DialogContent className="sm:max-w-md">
             <DialogHeader>

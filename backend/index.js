@@ -6,6 +6,10 @@ const db = require('./db');
 const app = express();
 const port = process.env.PORT || 3001;
 
+// Middleware
+app.use(cors());
+app.use(express.json());
+
 // --- FUNGSI VALIDASI ---
 const validatePhoneNumber = (phone) => {
   if (!phone) return true;
@@ -13,24 +17,9 @@ const validatePhoneNumber = (phone) => {
   return phoneRegex.test(phone);
 };
 
-// --- FUNGSI TES KONEKSI DB (YANG HILANG) ---
-async function testDbConnection() {
-  try {
-    await db.query('SELECT NOW()');
-    console.log('✅ Koneksi database berhasil.');
-  } catch (error) {
-    console.error('❌ KONEKSI DATABASE GAGAL:', error.stack);
-    process.exit(1);
-  }
-}
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-
 // --- API ENDPOINTS UNTUK KEGIATAN (ACTIVITIES) ---
 
-// GET: Mendapatkan semua kegiatan (untuk halaman admin)
+// GET: Mendapatkan semua kegiatan
 app.get('/api/activities', async (req, res) => {
   try {
     const { rows } = await db.query('SELECT * FROM activities ORDER BY created_at DESC');
@@ -41,7 +30,7 @@ app.get('/api/activities', async (req, res) => {
   }
 });
 
-// GET: Mendapatkan hanya kegiatan yang berstatus 'Aktif' (untuk form presensi)
+// GET: Mendapatkan hanya kegiatan yang berstatus 'Aktif'
 app.get('/api/activities/active', async (req, res) => {
     try {
       const { rows } = await db.query("SELECT * FROM activities WHERE status = 'Aktif' ORDER BY nama_kegiatan ASC");
@@ -70,7 +59,7 @@ app.post('/api/activities', async (req, res) => {
     }
 });
 
-// PUT: Mengubah kegiatan (termasuk status)
+// PUT: Mengubah kegiatan
 app.put('/api/activities/:id', async (req, res) => {
     const { id } = req.params;
     const { nama_kegiatan, tipe_kegiatan, status } = req.body;
@@ -107,8 +96,7 @@ app.delete('/api/activities/:id', async (req, res) => {
     }
 });
 
-
-// --- API ENDPOINTS UNTUK PRESENSI & PEGAWAI (TIDAK BERUBAH) ---
+// --- API ENDPOINTS UNTUK PRESENSI & PEGAWAI ---
 
 app.get('/api/records', async (req, res) => {
   try {
@@ -172,9 +160,9 @@ app.get('/api/employees/:nip', async (req, res) => {
     }
 });
 
-// Jalankan tes koneksi, lalu start server
-testDbConnection().then(() => {
-    app.listen(port, () => {
-        console.log(`Server berjalan di http://localhost:${port}`);
-    });
+
+// Jalankan server Express
+app.listen(port, '127.0.0.1', () => {
+  console.log(`🚀 Server berjalan di http://localhost:${port}`);
+  console.log('✅ Backend siap menerima koneksi.');
 });
